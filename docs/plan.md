@@ -43,11 +43,16 @@
   ## Task Breakdown
   
   ### Arc A — Avatar Build
-  - [ ] **Task 1: Project scaffold + EC2 g6e.4xlarge environment.** Repo structure
+  - [~] **Task 1: Project scaffold + EC2 g6e.4xlarge environment.** Repo structure
     (offline-pipeline / web-renderer / runtime-server); CUDA/PyTorch env on L40S; S3 bucket +
     CloudWatch log group; AWS CLI identity/region verified (read-only).
     *Test:* smoke-test asserts GPU visible, torch CUDA available, S3 round-trip.
     *Demo:* `make verify-env` prints GPU/driver/CUDA, confirms S3 + CloudWatch.
+    **Status (local, pre-EC2): SUBSTANTIALLY PREPARED.** Repo structure, pinned
+    CUDA 12.1 env (`requirements.txt`/`environment.yml`/`Dockerfile`), `Makefile`
+    (`setup`/`verify-env`/`fetch-models`/`stage-assets`), and `verify_env.py`
+    (nvidia-smi + torch.cuda smoke test) are committed. GPU/CUDA assertion and
+    live S3 round-trip run tomorrow on the L40S instance.
   - [ ] **Task 2: License & dependency audit (tracked, non-blocking).** Document licenses for
     FLAME, GAGAvatar, GAGAvatar_track, GaussianAvatars, ARTalk/UniLS, gsplat, DINOv3; mark
     commercial restrictions; record escape hatches.
@@ -59,10 +64,17 @@
   - [ ] **Task 4: FLAME tracking stage (GAGAvatar_track).** Run on reference video → per-frame
     FLAME params (shape/expr/pose/eye), camera, bbox, landmarks; stable on-disk schema.
     *Test:* shapes/ranges; mesh overlay on frames. *Demo:* video → `flame_params.npz` + overlay.
-  - [ ] **Task 5: Capture spec + ingest the real NIVA subject.** Capture guide (portraits:
+  - [~] **Task 5: Capture spec + ingest the real NIVA subject.** Capture guide (portraits:
     front/±yaw/±pitch; video: neutral, phonemes, smile, mouth-open, blink, gaze, head motion)
     + ingest/QA tool.
     *Test:* validator checks resolution, face detect, length/fps. *Demo:* subject `flame_params.npz`.
+    **Status (local, pre-EC2): SUBSTANTIALLY PREPARED.** Ingest/QA validator
+    (`niva_offline.ingest.validate_capture`: portrait resolution/single-face/aspect
+    checks + video duration/fps/resolution + sampled motion & mouth-activity
+    coverage) and the stable on-disk schema (`niva_offline.schema.flame_params`:
+    `FlameFrameParams` + `FramesManifest`, NPZ/JSON round-trip) are committed and
+    unit-tested. Reference-capture audit complete (see Local Prep Status below).
+    The `flame_params.npz` demo output comes from the Task 4 tracking run on EC2.
   - [ ] **Task 6: Feed-forward base avatar (GAGAvatar).** Portrait(s) → ~58K FLAME-bound Gaussians;
     render under tracked params.
     *Test:* Gaussian count ≈ expected; PSNR/SSIM vs source above threshold.
@@ -119,3 +131,68 @@
   - Insert an explicit multi-view capture task before Task 8 (GaussianAvatars-style refinement
     benefits from multi-view; the paper does monocular).
   - Evaluate `UniLS` (newer ARTalk successor) alongside ARTalk in Task 12.
+
+  ## Local Prep Status (pre-EC2)
+  Prepared locally on 2026-10-07 so a fresh EC2 g6e.4xlarge (L40S 48GB, CUDA) can
+  `git clone` and start building with zero setup friction. Legend: `[~]` =
+  substantially prepared locally; blocked only on live-GPU/AWS steps.
+
+  ### What is ready in the repo (committed, no large blobs)
+  - **Scaffold + env (Task 1 [~]):** `offline-pipeline/` (src-layout `niva_offline`
+    package: `flame/ tracking/ base/ binding/ refine/ export/ schema/ ingest/`),
+    `web-renderer/`, `runtime-server/`, each with a role README. Pinned CUDA 12.1
+    env: `requirements.txt` (torch==2.3.1+cu121, torchvision==0.18.1+cu121 for
+    L40S/Ada sm_89), `environment.yml`, `Dockerfile` (TORCH_CUDA_ARCH_LIST=8.9),
+    `pyproject.toml`. `Makefile` with `setup / verify-env / fetch-models /
+    stage-assets / test / docker-build`. `verify_env.py` GPU+CUDA smoke test.
+  - **License audit (Task 2):** `docs/LICENSES.md` — component/repo/license/
+    commercial-OK table + pre-launch checklist. GaussianAvatars Toyota
+    NON-COMMERCIAL flagged with two escape hatches (reimplement triangle-binding
+    math; or FlashAvatar UV embedding). Not a build blocker.
+  - **FLAME schema (supports Task 4):** `niva_offline.schema.flame_params` —
+    `FlameFrameParams` (shape300/expr100/pose6/eye6/camera3x4/bbox4/landmarks,
+    112-d conditioning vector) + `FramesManifest`, NPZ/JSON round-trip, validated.
+  - **Capture spec + ingest (Task 5 [~]):** `niva_offline.ingest.validate_capture`
+    portrait + video QA validators; `ingest/README.md` documents the capture guide
+    and the completed reference-capture audit.
+  - **Fetch/stage scripts:** `scripts/fetch_models.sh` (idempotent; FLAME 2020 is
+    license-gated and refuses to bypass; GAGAvatar / GAGAvatar_track / ARTalk /
+    DINOv3 / gsplat sections; downloads into git-ignored `offline-pipeline/
+    checkpoints/`). `scripts/stage_assets_to_s3.sh` (dry-run by default; uploads
+    NIVA capture assets to S3 only with `NIVA_CONFIRM=1`).
+  - **Hygiene:** root `.gitignore` keeps weights/datasets/large media out of git.
+    The 534MB `NIVA/video/NIVA_PSR.mp4`, `NIVA/images/*.mp4`, and `NIVA/voice/*.mp3`
+    are explicitly ignored (S3 is the source of truth). The 5 portrait PNGs are
+    kept as a lightweight git preview.
+  - **Tests:** `offline-pipeline/tests/` — 13 passing (3 scaffold + 5 schema +
+    5 ingest). Verified `python3 -m pytest tests/ -q` → `13 passed`.
+
+  ### Blocked only on the EC2 instance (live GPU / AWS)
+  - `make verify-env` live GPU+CUDA assertion; S3 bucket + CloudWatch log group
+    creation and round-trip; model-weight fetches; FLAME 2020 licensed download;
+    Task 4 tracking run producing the first real `flame_params.npz`.
+
+  ### EC2-day runbook (zero-friction start)
+  1. `git clone <repo-url> && cd NIVA-Neural-Intelligent-Virtual-Assistant`
+  2. `make setup`            — create env, install pinned deps + `pip install -e .`
+  3. `make verify-env`       — assert GPU visible + `torch.cuda.is_available()`;
+     print driver/CUDA/GPU
+  4. `./scripts/fetch_models.sh`      — fetch GAGAvatar / GAGAvatar_track / ARTalk /
+     DINOv3 / gsplat into `offline-pipeline/checkpoints/`; supply FLAME 2020 via
+     `FLAME2020_SRC` (license-gated, never auto-bypassed)
+  5. `./scripts/stage_assets_to_s3.sh`  — dry-run first, then `NIVA_CONFIRM=1
+     ./scripts/stage_assets_to_s3.sh` to upload capture assets to S3
+  6. Start **Task 4: FLAME tracking** (GAGAvatar_track on `NIVA_PSR.mp4`) → per-
+     frame FLAME params written via the `FlameFrameParams`/`FramesManifest` schema.
+
+  ### Today's findings (2026-10-07)
+  - **Nova Sonic region + model IDs:** confirmed live in **us-east-1** as
+    `amazon.nova-2-sonic-v1:0` / `amazon.nova-2-5-sonic`. The build/data region is
+    us-east-2 (Ohio, SOW), so the runtime server (Arc B) makes a cross-region call
+    to us-east-1 for Nova Sonic. **No visemes:** Nova Sonic emits audio + text only;
+    FLAME motion is derived via the ARTalk-style audio→FLAME model (Task 12),
+    confirming the locked audio-layer decision.
+  - **Reference-capture audit (`NIVA/`):** identity match across the 5 portraits
+    and `NIVA_PSR.mp4` = **OK**; expression/viseme coverage in the reference video
+    = **OK** (sufficient for refinement). **Blinks and large head-rotation coverage
+    are unconfirmed → tagged v2 nice-to-have** (not blocking the v1 build).
