@@ -1,0 +1,76 @@
+# =============================================================================
+# NIVA offline-pipeline — PINNED Python runtime dependencies
+# =============================================================================
+# Target: EC2 g6e.4xlarge — NVIDIA L40S (Ada Lovelace, compute capability sm_89,
+#         48 GB VRAM), CUDA 12.x toolkit/driver. Python 3.10.
+#
+# These are the EXACT versions to install on the instance. Do NOT `pip install`
+# locally — this file is a lockfile for tomorrow's EC2 setup. The CUDA torch
+# wheels are pulled from the PyTorch cu121 index (see --extra-index-url below),
+# which is the correct, L40S/Ada-compatible build (sm_89 is supported by the
+# cu121 wheels).
+#
+# Install on EC2 with:
+#   pip install -r requirements.txt
+# =============================================================================
+
+# -- PyTorch CUDA 12.1 wheel index (L40S / Ada sm_89 compatible) --------------
+# cu121 wheels ship with CUDA 12.1 runtime and support Ada (sm_89). This is the
+# right choice for the L40S on the g6e.4xlarge.
+--extra-index-url https://download.pytorch.org/whl/cu121
+
+# -- Core deep-learning stack (CUDA 12.1 builds) ------------------------------
+torch==2.3.1+cu121
+torchvision==0.18.1+cu121
+
+# -- Numerics / vision / geometry ---------------------------------------------
+numpy==1.26.4           # <2.0: many 3DGS/torch extensions not yet NumPy-2 safe
+opencv-python==4.10.0.84
+trimesh==4.4.9
+scipy==1.13.1
+Pillow==10.4.0
+imageio==2.35.1
+imageio-ffmpeg==0.5.1   # video I/O for the reference footage
+chumpy==0.70            # FLAME 2020 .pkl models are chumpy-pickled
+roma==1.5.0             # rotation utilities for FLAME pose / binding math
+
+# -- AWS (S3 asset staging, CloudWatch) ---------------------------------------
+boto3==1.35.36
+botocore==1.35.36
+
+# -- Config / utils -----------------------------------------------------------
+pyyaml==6.0.2
+tqdm==4.66.5
+einops==0.8.0
+
+# =============================================================================
+# GPU / git-sourced dependencies — INSTALL ON EC2, NOT PINNED AS WHEELS HERE
+# =============================================================================
+# These require the CUDA toolkit present (devel image / instance) to JIT-compile
+# CUDA extensions against sm_89, so they are installed explicitly on the box
+# AFTER torch is in place. Left as commented git URLs on purpose — the
+# fetch/build step is handled by the Dockerfile and/or scripts/fetch_models.sh
+# (other stage). Pin by commit when the exact SHAs are confirmed on-instance.
+#
+# -- Gaussian rasterization backend (compiles CUDA ext against installed torch):
+#   gsplat==1.3.0
+#   # or from source, pinned by tag:
+#   # git+https://github.com/nerfstudio-project/gsplat.git@v1.3.0
+#
+# -- GAGAvatar feed-forward base avatar (Stage 1 stand-in):
+#   # git+https://github.com/xg-chu/GAGAvatar.git@<PIN_COMMIT>
+#
+# -- GAGAvatar_track FLAME tracker (video/image -> FLAME params):
+#   # git+https://github.com/xg-chu/GAGAvatar_track.git@<PIN_COMMIT>
+#
+# -- ARTalk audio->FLAME driver (consumed by runtime-server; shares FLAME repr):
+#   # git+https://github.com/xg-chu/ARTalk.git@<PIN_COMMIT>
+#
+# -- GaussianAvatars (binding math reference; Toyota NON-COMMERCIAL — flagged):
+#   # git+https://github.com/ShenhanQian/GaussianAvatars.git@<PIN_COMMIT>
+#   # NOTE: non-commercial license. See LICENSES.md. Prefer reimplementing the
+#   #       standard FLAME triangle-binding math rather than vendoring this.
+#
+# -- (reference only, not built here) DINOv3 frozen features:
+#   # git+https://github.com/facebookresearch/dinov3.git@<PIN_COMMIT>
+# =============================================================================

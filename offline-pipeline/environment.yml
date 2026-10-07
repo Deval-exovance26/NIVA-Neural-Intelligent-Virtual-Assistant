@@ -1,0 +1,56 @@
+# =============================================================================
+# NIVA offline-pipeline — conda environment (mirrors requirements.txt)
+# =============================================================================
+# Target: EC2 g6e.4xlarge — NVIDIA L40S (Ada, sm_89, 48GB), CUDA 12.x. Python 3.10.
+#
+# This is the conda path to the same pinned stack as requirements.txt. torch /
+# torchvision are installed via pip from the PyTorch cu121 index (the reliable
+# way to get the L40S/Ada-compatible CUDA 12.1 wheels inside conda).
+#
+# Create on EC2 with:
+#   conda env create -f environment.yml
+#   conda activate niva-offline
+# (Driven by `make setup` from the repo root.)
+# =============================================================================
+name: niva-offline
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip=24.2
+  # Build toolchain for any CUDA extensions compiled on-instance (gsplat etc.).
+  - setuptools=68.2.2
+  - wheel=0.41.2
+  - pip:
+      # PyTorch CUDA 12.1 wheels — L40S / Ada sm_89 compatible.
+      - --extra-index-url https://download.pytorch.org/whl/cu121
+      - torch==2.3.1+cu121
+      - torchvision==0.18.1+cu121
+      # Numerics / vision / geometry (pinned, mirror of requirements.txt).
+      - numpy==1.26.4
+      - opencv-python==4.10.0.84
+      - trimesh==4.4.9
+      - scipy==1.13.1
+      - Pillow==10.4.0
+      - imageio==2.35.1
+      - imageio-ffmpeg==0.5.1
+      - chumpy==0.70
+      - roma==1.5.0
+      # AWS.
+      - boto3==1.35.36
+      - botocore==1.35.36
+      # Config / utils.
+      - pyyaml==6.0.2
+      - tqdm==4.66.5
+      - einops==0.8.0
+      # Dev/test tooling.
+      - pytest==8.3.3
+      - pytest-cov==5.0.0
+      - ruff==0.6.9
+      - black==24.10.0
+      # ---------------------------------------------------------------------
+      # GPU / git-sourced deps are installed on-instance AFTER torch (they
+      # JIT-compile CUDA extensions against sm_89). See requirements.txt and the
+      # Dockerfile for the commented git URLs:
+      #   gsplat, GAGAvatar, GAGAvatar_track, ARTalk, GaussianAvatars (NC-flagged).
+      # ---------------------------------------------------------------------

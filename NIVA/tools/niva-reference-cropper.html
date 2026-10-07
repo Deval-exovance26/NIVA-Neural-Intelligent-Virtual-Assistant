@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NIVA Reference Canvas Cropper</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background: #15110f; color: #f5eee9; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; grid-template-columns: 330px 1fr; }
+    aside { padding: 20px; background: #211a17; border-right: 1px solid #473832; overflow-y: auto; }
+    main { min-width: 0; padding: 20px; }
+    h1 { font-size: 20px; margin: 0 0 8px; }
+    p, .hint { color: #c8bab1; font-size: 13px; line-height: 1.45; }
+    .panel { padding: 14px 0; border-top: 1px solid #473832; }
+    .panel:first-of-type { border-top: 0; }
+    label { display: block; font-size: 12px; color: #dbc9bd; margin: 10px 0 4px; }
+    input, button { font: inherit; }
+    input[type="text"], input[type="number"] { width: 100%; border: 1px solid #5a463e; border-radius: 6px; padding: 8px; background: #120f0d; color: #fff; }
+    input[type="number"] { padding-right: 2px; }
+    input[type="file"] { width: 100%; font-size: 12px; }
+    button { cursor: pointer; border: 0; border-radius: 6px; padding: 9px 10px; color: #201511; background: #e8bda5; font-weight: 700; }
+    button.secondary { background: #5d4940; color: #fff; }
+    button.danger { background: #9b4d47; color: #fff; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .fields label { margin-top: 8px; }
+    #cropList { list-style: none; margin: 12px 0 0; padding: 0; max-height: 235px; overflow-y: auto; }
+    #cropList button { width: 100%; background: transparent; color: #f5eee9; border: 1px solid #4d3c35; text-align: left; margin-bottom: 6px; font-weight: 500; }
+    #cropList button.active { border-color: #f2c27a; background: #463229; }
+    #canvasWrap { height: calc(100vh - 40px); overflow: auto; border: 1px solid #4d3c35; border-radius: 8px; background: #0c0a09; }
+    canvas { display: block; cursor: crosshair; image-rendering: auto; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .toolbar label { margin: 0; }
+    .toolbar input { width: 220px; vertical-align: middle; }
+    kbd { font-family: inherit; padding: 1px 4px; border: 1px solid #66534a; border-radius: 3px; }
+    @media (max-width: 800px) { body { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 1px solid #473832; } #canvasWrap { height: 70vh; } }
+  </style>
+</head>
+<body>
+  <aside>
+    <h1>NIVA reference cropper</h1>
+    <p>Choose the original atlas, then draw a box directly on the canvas. Drag inside a selected box to move it; drag a corner handle to resize it.</p>
+    <div class="panel">
+      <label for="file">Original reference atlas</label>
+      <input id="file" type="file" accept="image/png,image/jpeg,image/webp">
+      <div class="actions"><button id="newCrop" class="secondary" disabled>New crop</button><button id="deleteCrop" class="danger" disabled>Delete selected</button></div>
+    </div>
+    <div class="panel">
+      <label for="name">Position / filename</label>
+      <input id="name" type="text" value="unnamed_crop" disabled>
+      <div class="fields">
+        <label>X<input id="x" type="number" min="0" step="1" disabled></label>
+        <label>Y<input id="y" type="number" min="0" step="1" disabled></label>
+        <label>Width<input id="w" type="number" min="1" step="1" disabled></label>
+        <label>Height<input id="h" type="number" min="1" step="1" disabled></label>
+      </div>
+      <div class="actions"><button id="download" disabled>Download selected PNG</button><button id="downloadAll" class="secondary" disabled>Download all</button></div>
+    </div>
+    <div class="panel">
+      <strong>Crop list</strong>
+      <ul id="cropList"></ul>
+    </div>
+    <p class="hint">Coordinates use the original image pixels. Tip: click <kbd>New crop</kbd>, then drag. Press Delete to remove the selected crop.</p>
+  </aside>
+  <main>
+    <div class="toolbar">
+      <label for="zoom">Canvas zoom</label>
+      <input id="zoom" type="range" min="20" max="150" value="65"> <span id="zoomValue">65%</span>
+    </div>
+    <div id="canvasWrap"><canvas id="canvas"></canvas></div>
+  </main>
+  <script>
+    const file = document.querySelector('#file'), canvas = document.querySelector('#canvas'), ctx = canvas.getContext('2d');
+    const zoom = document.querySelector('#zoom'), zoomValue = document.querySelector('#zoomValue');
+    const nameInput = document.querySelector('#name'), xInput = document.querySelector('#x'), yInput = document.querySelector('#y'), wInput = document.querySelector('#w'), hInput = document.querySelector('#h');
+    const newCrop = document.querySelector('#newCrop'), deleteCrop = document.querySelector('#deleteCrop'), download = document.querySelector('#download'), downloadAll = document.querySelector('#downloadAll'), cropList = document.querySelector('#cropList');
+    let image = null, crops = [], selected = -1, interaction = null;
+    const scale = () => Number(zoom.value) / 100;
+    const selectedCrop = () => crops[selected];
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    function rect(c) { return { x: Math.round(c.x), y: Math.round(c.y), w: Math.max(1, Math.round(c.w)), h: Math.max(1, Math.round(c.h)) }; }
+    function normalize(c) {
+      c.w = Math.max(1, c.w); c.h = Math.max(1, c.h);
+      c.x = clamp(c.x, 0, image.naturalWidth - c.w); c.y = clamp(c.y, 0, image.naturalHeight - c.h);
+      c.w = Math.min(c.w, image.naturalWidth - c.x); c.h = Math.min(c.h, image.naturalHeight - c.y);
+    }
+    function draw() {
+      if (!image) return;
+      const s = scale(); canvas.width = Math.round(image.naturalWidth * s); canvas.height = Math.round(image.naturalHeight * s);
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      crops.forEach((crop, i) => {
+        const c = rect(crop), active = i === selected, x = c.x * s, y = c.y * s, w = c.w * s, h = c.h * s;
+        ctx.fillStyle = active ? 'rgba(255, 190, 110, .12)' : 'rgba(74, 211, 165, .10)'; ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = active ? '#ffc36d' : '#4ad3a5'; ctx.lineWidth = active ? 3 : 2; ctx.strokeRect(x, y, w, h);
+        ctx.fillStyle = active ? '#ffc36d' : '#4ad3a5'; ctx.font = 'bold 14px system-ui'; ctx.fillText(crop.name, x + 5, Math.max(15, y - 5));
+        if (active) [[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(([hx,hy]) => ctx.fillRect(hx - 5, hy - 5, 10, 10));
+      });
+    }
+    function updateInputs() {
+      const c = selectedCrop(), disabled = !c;
+      [nameInput,xInput,yInput,wInput,hInput,deleteCrop,download].forEach(el => el.disabled = disabled);
+      downloadAll.disabled = crops.length === 0;
+      if (!c) return;
+      const r = rect(c); nameInput.value = c.name; xInput.value = r.x; yInput.value = r.y; wInput.value = r.w; hInput.value = r.h;
+    }
+    function renderList() {
+      cropList.innerHTML = '';
+      crops.forEach((c, i) => { const item = document.createElement('li'), button = document.createElement('button'); button.textContent = c.name; button.className = i === selected ? 'active' : ''; button.onclick = () => { selected = i; updateInputs(); renderList(); draw(); }; item.append(button); cropList.append(item); });
+    }
+    function refresh() { updateInputs(); renderList(); draw(); }
+    function canvasPoint(event) { const b = canvas.getBoundingClientRect(), s = scale(); return { x: clamp((event.clientX - b.left) / s, 0, image.naturalWidth), y: clamp((event.clientY - b.top) / s, 0, image.naturalHeight) }; }
+    function hitTest(p) {
+      const c = selectedCrop(); if (!c) return null; const r = rect(c), threshold = 12 / scale();
+      const corners = [['nw',r.x,r.y],['ne',r.x+r.w,r.y],['sw',r.x,r.y+r.h],['se',r.x+r.w,r.y+r.h]];
+      const corner = corners.find(([,x,y]) => Math.abs(p.x-x) < threshold && Math.abs(p.y-y) < threshold); if (corner) return corner[0];
+      return p.x >= r.x && p.x <= r.x+r.w && p.y >= r.y && p.y <= r.y+r.h ? 'move' : null;
+    }
+    canvas.addEventListener('pointerdown', event => {
+      if (!image) return; const p = canvasPoint(event), hit = hitTest(p);
+      if (hit) { interaction = { type: hit, start: p, original: {...selectedCrop()} }; }
+      else { const crop = { name: `crop_${crops.length + 1}`, x: p.x, y: p.y, w: 1, h: 1 }; crops.push(crop); selected = crops.length - 1; interaction = { type: 'draw', start: p }; refresh(); }
+      canvas.setPointerCapture(event.pointerId);
+    });
+    canvas.addEventListener('pointermove', event => {
+      if (!interaction) return; const p = canvasPoint(event), c = selectedCrop();
+      if (interaction.type === 'draw') { c.x = Math.min(interaction.start.x,p.x); c.y = Math.min(interaction.start.y,p.y); c.w = Math.abs(p.x-interaction.start.x); c.h = Math.abs(p.y-interaction.start.y); }
+      else if (interaction.type === 'move') { c.x = interaction.original.x + p.x - interaction.start.x; c.y = interaction.original.y + p.y - interaction.start.y; }
+      else { const o = interaction.original, opposite = { nw:[o.x+o.w,o.y+o.h], ne:[o.x,o.y+o.h], sw:[o.x+o.w,o.y], se:[o.x,o.y] }[interaction.type]; c.x = Math.min(p.x,opposite[0]); c.y = Math.min(p.y,opposite[1]); c.w = Math.abs(p.x-opposite[0]); c.h = Math.abs(p.y-opposite[1]); }
+      normalize(c); refresh();
+    });
+    canvas.addEventListener('pointerup', () => interaction = null);
+    file.addEventListener('change', () => { const selectedFile = file.files[0]; if (!selectedFile) return; const reader = new FileReader(); reader.onload = () => { image = new Image(); image.onload = () => { crops = []; selected = -1; newCrop.disabled = false; refresh(); }; image.src = reader.result; }; reader.readAsDataURL(selectedFile); });
+    newCrop.addEventListener('click', () => { crops.push({name:`crop_${crops.length+1}`,x:0,y:0,w:100,h:100}); selected=crops.length-1; refresh(); });
+    deleteCrop.addEventListener('click', () => { if (selected < 0) return; crops.splice(selected,1); selected = Math.min(selected,crops.length-1); refresh(); });
+    [nameInput,xInput,yInput,wInput,hInput].forEach(input => input.addEventListener('input', () => { const c=selectedCrop(); if (!c) return; c.name=nameInput.value.trim() || 'unnamed_crop'; c.x=Number(xInput.value); c.y=Number(yInput.value); c.w=Number(wInput.value); c.h=Number(hInput.value); normalize(c); refresh(); }));
+    zoom.addEventListener('input', () => { zoomValue.textContent = `${zoom.value}%`; draw(); });
+    function downloadCrop(c) { const r = rect(c), output = document.createElement('canvas'); output.width=r.w; output.height=r.h; output.getContext('2d').drawImage(image,r.x,r.y,r.w,r.h,0,0,r.w,r.h); output.toBlob(blob => { const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${c.name.replace(/[^a-z0-9_-]+/gi,'_') || 'crop'}.png`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }, 'image/png'); }
+    download.addEventListener('click', () => downloadCrop(selectedCrop()));
+    downloadAll.addEventListener('click', () => crops.forEach((c,i) => setTimeout(() => downloadCrop(c), i * 180)));
+    window.addEventListener('keydown', event => { if ((event.key === 'Delete' || event.key === 'Backspace') && document.activeElement.tagName !== 'INPUT') deleteCrop.click(); });
+  </script>
+</body>
+</html>

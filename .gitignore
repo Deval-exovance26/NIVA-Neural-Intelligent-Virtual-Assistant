@@ -1,0 +1,91 @@
+# =============================================================================
+# NIVA — root .gitignore
+# =============================================================================
+# Large/binary capture assets, model weights, and datasets must NEVER be
+# committed. They live in S3 (staged via scripts/stage_assets_to_s3.sh) or are
+# fetched on-instance (scripts/fetch_models.sh). Keeping them out of git is what
+# lets a fresh EC2 clone be fast and clean.
+# =============================================================================
+
+# -- Model weights / checkpoints ----------------------------------------------
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+*.onnx
+*.h5
+*.pkl           # FLAME 2020 models are pickled; never commit the licensed weights
+
+# -- NumPy archives (weights/UV caches). flame_uv.npz is a fetched asset, NOT a
+#    repo file; only DOCS/placeholders about it are tracked. ---------------
+*.npz
+*.npy
+
+# -- Large media / data blobs -------------------------------------------------
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+*.wav
+*.flac
+# mp3 test clips are capture assets -> S3, not git.
+*.mp3
+
+# -- Explicit NIVA capture-asset guards (the 534MB video must never land in git)
+NIVA/video/*.mp4
+NIVA/video/*.mov
+NIVA/images/*.mp4          # e.g. NIVA/images/Nidhi_Avatar.mp4
+NIVA/voice/*.mp3
+# NOTE: NIVA/images/*.png (5 portraits, ~2MB each) are intentionally NOT ignored.
+#       They are small enough to track for convenience/reference. They are ALSO
+#       staged to S3 as the authoritative copy (scripts/stage_assets_to_s3.sh);
+#       S3 is the source of truth for the pipeline, git holds them only as a
+#       lightweight preview. If repo size becomes a concern, add
+#       `NIVA/images/*.png` here and rely solely on S3.
+
+# -- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# -- Virtual / conda env dirs ------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+.conda/
+envs/
+
+# -- Node / web-renderer -----------------------------------------------------
+node_modules/
+web-renderer/dist/
+web-renderer/.vite/
+*.log
+
+# -- Pipeline run outputs (regenerated; large) -------------------------------
+outputs/
+checkpoints/
+runs/
+logs/
+data/raw/
+data/processed/
+*.ply          # exported Gaussian point clouds -> S3
+
+# -- OS / editor -------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

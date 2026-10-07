@@ -1,0 +1,15 @@
+# Keep the Docker build context small and free of weights/data.
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+# Never ship weights/data into the image.
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.npz
+*.mp4
+*.mov

@@ -1,0 +1,54 @@
+# offline-pipeline — Python package metadata (src/ layout).
+#
+# Target runtime: EC2 g6e.4xlarge (NVIDIA L40S, Ada Lovelace sm_89, 48GB), CUDA 12.x.
+# Python 3.10 (matches environment.yml). Runtime deps are PINNED in requirements.txt;
+# this file declares package metadata + the build system only, so the package is
+# `pip install -e .`-able without re-resolving the CUDA torch build.
+
+[build-system]
+requires = ["setuptools>=68.0.0", "wheel>=0.41.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "niva-offline"
+version = "0.1.0"
+description = "NIVA offline avatar build pipeline: FLAME tracking + GAGAvatar feed-forward base + per-subject refinement + runtime asset export."
+readme = "README.md"
+requires-python = "==3.10.*"
+license = { text = "Proprietary — Calyza NIVA" }
+authors = [{ name = "Calyza NIVA Team" }]
+keywords = ["3dgs", "gaussian-splatting", "flame", "avatar", "gagavatar"]
+
+# NOTE: runtime dependencies are intentionally NOT listed here. The CUDA-specific
+# torch/torchvision builds and the git-sourced deps (gsplat, GAGAvatar, ARTalk) are
+# pinned/documented in requirements.txt and installed explicitly on the instance so
+# the exact CUDA 12.1 wheels for L40S/Ada are used. Keeping them out of [project]
+# avoids pip re-resolving to a CPU or mismatched-CUDA torch at `pip install -e .`.
+dependencies = []
+
+[project.optional-dependencies]
+# Dev/test tooling only (safe to resolve from PyPI, no CUDA constraint).
+dev = [
+    "pytest==8.3.3",
+    "pytest-cov==5.0.0",
+    "ruff==0.6.9",
+    "black==24.10.0",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
