@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from niva_offline.schema import (
-    CONDITIONING_DIM,
     EXPRESSION_DIM,
     EYE_DIM,
     POSE_DIM,
@@ -16,7 +15,7 @@ from niva_offline.schema import (
     save_frame_npz,
     save_manifest_json,
 )
-from niva_offline.schema.flame_params import CONDITIONING_DIM as _COND  # noqa: F401
+from niva_offline.schema.flame_params import CONDITIONING_DIM
 
 
 def _make_frame(frame_index: int = 7, num_landmarks: int = 68) -> FlameFrameParams:

@@ -93,13 +93,29 @@ def _cv2():
     return cv2
 
 
-def _face_cascade():
+#: Env var to point at a YuNet ONNX model (optional, enables DNN face detector
+#: on OpenCV builds without legacy Haar cascades, e.g. OpenCV 5).
+YUNET_MODEL_ENV = "NIVA_YUNET_MODEL"
+
+
+def _haar_cascade():
+    """Return a loaded frontal-face Haar cascade, or ``None`` if unavailable.
+
+    OpenCV 4.x ships ``haarcascade_frontalface_default.xml`` and
+    ``cv2.CascadeClassifier``. OpenCV 5 removed the legacy Haar cascades, so this
+    returns ``None`` there and the caller falls back to another backend.
+    """
     cv2 = _cv2()
-    cascade_path = Path(cv2.data.haarcascades) / "haarcascade_frontalface_default.xml"
+    if not hasattr(cv2, "CascadeClassifier"):
+        return None
+    haar_dir = getattr(getattr(cv2, "data", None), "haarcascades", None)
+    if not haar_dir:
+        return None
+    cascade_path = Path(haar_dir) / "haarcascade_frontalface_default.xml"
+    if not cascade_path.exists():
+        return None
     cascade = cv2.CascadeClassifier(str(cascade_path))
-    if cascade.empty():  # pragma: no cover - env-dependent
-        raise RuntimeError(f"failed to load Haar cascade at {cascade_path}")
-    return cascade
+    return None if cascade.empty() else cascade
 
 
 # --- Pure-ish helpers (unit-testable) --------------------------------------
@@ -112,20 +128,83 @@ def read_image(path: PathLike) -> np.ndarray:
     return img
 
 
+def _detect_haar(cv2, gray: np.ndarray):
+    cascade = _haar_cascade()
+    if cascade is None:
+        return None  # backend unavailable
+    min_side = max(60, min(gray.shape[:2]) // 8)
+    faces = cascade.detectMultiScale(
+        gray, scaleFactor=1.1, minNeighbors=6, minSize=(min_side, min_side)
+    )
+    return [(int(x), int(y), int(w), int(h)) for (x, y, w, h) in faces]
+
+
+def _detect_yunet(cv2, image: np.ndarray):
+    """DNN face detection via YuNet if a model path is provided in the env."""
+    import os
+
+    model = os.environ.get(YUNET_MODEL_ENV)
+    if not model or not hasattr(cv2, "FaceDetectorYN_create") or not Path(model).exists():
+        return None
+    h, w = image.shape[:2]
+    detector = cv2.FaceDetectorYN_create(model, "", (w, h), score_threshold=0.6)
+    detector.setInputSize((w, h))
+    _, faces = detector.detect(image)
+    if faces is None:
+        return []
+    return [(int(f[0]), int(f[1]), int(f[2]), int(f[3])) for f in faces]
+
+
+def _detect_heuristic(cv2, gray: np.ndarray):
+    """Model-free fallback: locate the single most prominent high-detail blob.
+
+    No downloads, no Haar/DNN. Uses gradient-energy density to find the dominant
+    textured region (a centered face on a portrait). Returns at most one box;
+    adequate for a presence/count sanity check when no detector model is
+    available. This is a last resort — real detection should use Haar (OpenCV 4)
+    or YuNet (set %s).
+    """ % YUNET_MODEL_ENV
+    h, w = gray.shape[:2]
+    gx = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+    mag = cv2.magnitude(gx, gy)
+    # Smooth to a coarse energy map and threshold around the dominant mode.
+    energy = cv2.GaussianBlur(mag, (0, 0), sigmaX=max(w, h) / 64.0)
+    _, maxval, _, _ = cv2.minMaxLoc(energy)
+    if maxval <= 0:
+        return []
+    mask = (energy > 0.35 * maxval).astype(np.uint8)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return []
+    biggest = max(contours, key=cv2.contourArea)
+    area = cv2.contourArea(biggest)
+    # Require the dominant region to be a plausible face fraction of the frame.
+    if area < 0.02 * h * w:
+        return []
+    x, y, bw, bh = cv2.boundingRect(biggest)
+    return [(int(x), int(y), int(bw), int(bh))]
+
+
 def detect_single_face(image: np.ndarray) -> FaceCheckResult:
-    """Detect faces in a BGR image via Haar cascade; report count + boxes."""
+    """Detect faces in a BGR image; report count + boxes.
+
+    Backend order (first available wins):
+      1. Haar cascade (OpenCV 4.x, zero-download) — lightweight default.
+      2. YuNet DNN (if ``NIVA_YUNET_MODEL`` points at a model file).
+      3. Model-free gradient-energy heuristic (last resort, e.g. OpenCV 5).
+    """
     cv2 = _cv2()
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    gray = cv2.equalizeHist(gray)
-    # minSize scales with image so tiny false positives are ignored.
-    min_side = max(60, min(gray.shape[:2]) // 8)
-    faces = _face_cascade().detectMultiScale(
-        gray,
-        scaleFactor=1.1,
-        minNeighbors=6,
-        minSize=(min_side, min_side),
-    )
-    boxes = [(int(x), int(y), int(w), int(h)) for (x, y, w, h) in faces]
+    gray_eq = cv2.equalizeHist(gray)
+
+    boxes = _detect_haar(cv2, gray_eq)
+    if boxes is None:
+        boxes = _detect_yunet(cv2, image)
+    if boxes is None:
+        boxes = _detect_heuristic(cv2, gray)
     return FaceCheckResult(num_faces=len(boxes), boxes=boxes)
 
 
