@@ -15,7 +15,7 @@
   - **Audio layer (2=b):** Derive FLAME motion from Nova Sonic audio via an ARTalk-style
     audio→FLAME model (Nova Sonic does not emit phoneme visemes).
   - **Scope (3=c):** Full end-to-end including Nova Sonic + WebRTC.
-  - **Hardware:** Single EC2 g6e.4xlarge (L40S, 48GB), US East (Ohio), S3 + basic CloudWatch;
+  - **Hardware:** Single EC2 g6e.4xlarge (L40S, 48GB), Asia Pacific (Mumbai), S3 + basic CloudWatch;
     AWS CLI configured. Avatar rendering is client-side.
   - **Performance:** Time-to-first-audio < 1.5s; FPS tiers High ~60 / Medium ~30 / Low 20–30;
     stable 30 beats unstable higher.
@@ -86,7 +86,11 @@
   - [ ] **Task 8: Per-subject refinement (10K-iter, layout-preserving).** Refine Gaussian attributes
     vs reference video with mesh/binding/count frozen; anti-spike reg (scale-freeze warmup,
     log-scale clamp, screen-space anti-anisotropy) + dual-side random-bg compositing.
-    *Test:* held-out PSNR/SSIM up vs base; max aspect ratio bounded (~8).
+    **Durability:** write periodic resumable checkpoints (every N iters) to disk +
+    `s3://.../refine/v1/checkpoints/` so an overnight instance stop resumes from the
+    last checkpoint, not from zero (see RUNBOOK → *stop/start*). Support `--resume`.
+    *Test:* held-out PSNR/SSIM up vs base; max aspect ratio bounded (~8); resume-from-checkpoint
+    equals uninterrupted run within tolerance.
     *Demo:* before/after on held-out frames.
   - [ ] **Task 9: Export runtime avatar asset.** Serialize refined Gaussians + binding tables +
     FLAME metadata to browser-loadable format; upload to S3.
@@ -187,11 +191,12 @@
 
   ### Today's findings (2026-10-07)
   - **Nova Sonic region + model IDs:** confirmed live in **us-east-1** as
-    `amazon.nova-2-sonic-v1:0` / `amazon.nova-2-5-sonic`. The build/data region is
-    us-east-2 (Ohio, SOW), so the runtime server (Arc B) makes a cross-region call
-    to us-east-1 for Nova Sonic. **No visemes:** Nova Sonic emits audio + text only;
-    FLAME motion is derived via the ARTalk-style audio→FLAME model (Task 12),
-    confirming the locked audio-layer decision.
+    `amazon.nova-2-sonic-v1:0` / `amazon.nova-2-5-sonic`. Nova Sonic is NOT available
+    in ap-south-1. Arc A (avatar build) runs in **ap-south-1 (Asia Pacific / Mumbai)**;
+    the Arc B runtime makes a **cross-region Bedrock call** from ap-south-1 to us-east-1.
+    The added RTT must stay within the <1.5s time-to-first-audio budget. **No visemes:**
+    Nova Sonic emits audio + text only; FLAME motion is derived via the ARTalk-style
+    audio→FLAME model (Task 12), confirming the locked audio-layer decision.
   - **Reference-capture audit (`NIVA/`):** identity match across the 5 portraits
     and `NIVA_PSR.mp4` = **OK**; expression/viseme coverage in the reference video
     = **OK** (sufficient for refinement). **Blinks and large head-rotation coverage

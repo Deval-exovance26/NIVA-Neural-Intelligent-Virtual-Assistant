@@ -1,0 +1,32 @@
+{
+  "base": "niva_base",
+  "byte_order": "little-endian",
+  "conventions": {
+    "colors": "linear RGB in [0,1]",
+    "quaternion_order": "wxyz",
+    "scales": "linear (do not exponentiate)",
+    "world_space": "GAGAvatar/FLAME; renderer applies view+proj"
+  },
+  "dtype": "float32",
+  "field_order": [
+    "positions",
+    "rotations",
+    "scales",
+    "opacities",
+    "colors"
+  ],
+  "field_widths": {
+    "colors": 3,
+    "opacities": 1,
+    "positions": 3,
+    "rotations": 4,
+    "scales": 3
+  },
+  "format": "niva-gaussian-avatar",
+  "note": "Task 8 appearance refinement",
+  "num_gaussians": 180255,
+  "source": "refined @ iter 10000",
+  "stride_floats": 14,
+  "subject": "niva-female",
+  "version": "1.0.0"
+}

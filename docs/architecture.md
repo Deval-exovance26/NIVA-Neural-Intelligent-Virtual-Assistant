@@ -52,22 +52,22 @@
   - **Motion signal:** FLAME expression (ψ∈R100), pose (R6: head+jaw), eye (R6), at 25fps.
   
   ## Deployment Topology
-  - **Single EC2 g6e.4xlarge (L40S 48GB, US East/Ohio):** avatar build (Arc A) AND runtime
+  - **Single EC2 g6e.4xlarge (L40S 48GB, Asia Pacific / Mumbai):** avatar build (Arc A) AND runtime
     API/WebRTC + Nova Sonic session service (Arc B), co-located.
   - **S3:** source footage, tracked params, exported avatar assets.
-  - **CloudWatch:** basic logging.
+  - **CloudWatch:** basic logging (in ap-south-1).
   - **Client browser:** all avatar rendering (WebGPU, Three.js host; WebGL2 fallback).
   - **Cost control:** on-demand instance; documented stop/start when idle.
   
-  ## Region Topology (Nova Sonic cross-region)
-  - **Build + data region = us-east-2 (Ohio, SOW):** EC2 g6e.4xlarge, S3 buckets,
-    CloudWatch all live here.
+  ## Region Topology (two-region: ap-south-1 + us-east-1)
+  - **Arc A (avatar build) in ap-south-1 (Asia Pacific / Mumbai):** EC2 g6e.4xlarge, S3 buckets,
+    CloudWatch logs are **co-located in a single region**.
+  - **Arc B (Nova Sonic runtime):** The Arc B runtime makes a **cross-region Bedrock call**
+    from ap-south-1 to us-east-1 for Nova Sonic. The added RTT must stay within the
+    <1.5s time-to-first-audio budget.
   - **Nova Sonic region = us-east-1 (N. Virginia):** confirmed live as
-    `amazon.nova-2-sonic-v1:0` / `amazon.nova-2-5-sonic`. The Arc B runtime server
-    (in us-east-2) therefore makes a **cross-region Bedrock call to us-east-1** for
-    the `InvokeModelWithBidirectionalStream` speech-to-speech session. Pin this
-    endpoint region in config and account for the small added RTT in the
-    time-to-first-audio budget (<1.5s).
+    `amazon.nova-2-sonic-v1:0` / `amazon.nova-2-5-sonic`. Nova Sonic is NOT available
+    in ap-south-1 and is NOT invoked during Arc A.
   - **No visemes:** Nova Sonic returns audio + text only; FLAME lip/jaw/pose/eye
     motion is derived from the audio via the ARTalk-style audio→FLAME model (25fps).
   
@@ -99,8 +99,9 @@
   - SpatialAvatar-0 novel generator unavailable (mitigated by GAGAvatar stand-in).
   - Nova Sonic emits no visemes (confirmed): audio+text only — mitigated by the
     ARTalk-style audio→FLAME derivation (Task 12). Nova Sonic lives in us-east-1
-    (`amazon.nova-2-sonic-v1:0` / `amazon.nova-2-5-sonic`) → cross-region call from
-    the us-east-2 runtime; keep RTT inside the <1.5s TTFA budget.
+    (`amazon.nova-2-sonic-v1:0` / `amazon.nova-2-5-sonic`); the Arc B runtime makes
+    a **cross-region Bedrock call** from ap-south-1 to us-east-1. The added RTT must
+    stay within the <1.5s TTFA budget. Nova Sonic is NOT invoked during Arc A.
   
   ────────────────────────────────────────────────────────────────────────────────────────────────────────
   

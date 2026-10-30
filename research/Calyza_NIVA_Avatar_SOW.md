@@ -124,10 +124,10 @@ Nova Sonic bills on audio duration, a shape the AWS Pricing Calculator's Bedrock
 
 | Name | Group | Region | Hourly Cost (USD) | Monthly Cost (USD) |
 | --- | --- | --- | --- | --- |
-| Amazon EC2 (g6e.4xlarge) – Avatar Build + API/WebRTC | Compute | US East (Ohio) | 3.0043 | 2,193.10 |
-| Amazon Bedrock – Nova Sonic | AI Pipeline | US East (Ohio) | 44.38 – 88.77 | 32,400.00 – 64,800.00 |
-| Amazon S3 | Storage | US East (Ohio) | 0.0132 | 9.60 |
-| Amazon CloudWatch (basic logging) | Observability | US East (Ohio) | 0.0185 | 13.50 |
+| Amazon EC2 (g6e.4xlarge) – Avatar Build + API/WebRTC | Compute | US East (N. Virginia) | 3.0043 | 2,193.10 |
+| Amazon Bedrock – Nova Sonic | AI Pipeline | US East (N. Virginia) | 44.38 – 88.77 | 32,400.00 – 64,800.00 |
+| Amazon S3 | Storage | US East (N. Virginia) | 0.0132 | 9.60 |
+| Amazon CloudWatch (basic logging) | Observability | US East (N. Virginia) | 0.0185 | 13.50 |
 | **TOTAL** |  |  | **47.42 – 91.81** | **34,616.20 – 67,016.20** |
 
 *Row shaded green is verified via the AWS Pricing Calculator. All other rows are estimates pending calculator verification. For usage-billed services (Nova Sonic, S3), the hourly figure is the estimated monthly cost divided by 730 hours for comparability, not a real rate-card entry.*

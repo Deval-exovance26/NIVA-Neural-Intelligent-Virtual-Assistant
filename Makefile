@@ -1,7 +1,7 @@
 # =============================================================================
 # NIVA — top-level Makefile
 # =============================================================================
-# Entry points for the EC2 g6e.4xlarge (L40S, 48GB, CUDA 12.x) in us-east-2.
+# Entry points for the EC2 g6e.4xlarge (L40S, 48GB, CUDA 12.x) in ap-south-1.
 # Goal: fresh `git clone` -> `make setup && make verify-env` with zero friction.
 #
 #   make setup         create the offline-pipeline conda env (python 3.10)

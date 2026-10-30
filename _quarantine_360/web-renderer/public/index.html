@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>NIVA — Avatar (cross-device)</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #0f1115; color: #d8dde6;
+      font-family: system-ui, sans-serif; overflow: hidden; touch-action: none; }
+    #app { position: fixed; inset: 0; }
+    canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+    canvas:active { cursor: grabbing; }
+    #hud { position: fixed; left: 12px; top: 12px; font-size: 13px;
+      background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 8px;
+      line-height: 1.5; max-width: 340px; }
+    #hud b { color: #7cc4ff; }
+    #badge { position: fixed; right: 12px; top: 12px; font-size: 12px;
+      background: rgba(0,0,0,.45); padding: 6px 10px; border-radius: 8px; color: #9fe6a0; }
+    #err { position: fixed; inset: 0; display: none; place-items: center;
+      padding: 24px; text-align: center; }
+    #err div { max-width: 560px; background: #1a1d24; padding: 20px 24px;
+      border-radius: 10px; border: 1px solid #333; }
+    code { color: #ffcf7c; }
+  </style>
+</head>
+<body>
+  <div id="app"><canvas id="gfx"></canvas></div>
+  <div id="hud">
+    <div><b>NIVA</b> — female avatar</div>
+    <div id="stat">initializing…</div>
+    <div style="opacity:.8;margin-top:4px">drag = orbit · wheel/pinch = zoom</div>
+  </div>
+  <div id="badge">—</div>
+  <div id="err"><div id="errmsg"></div></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

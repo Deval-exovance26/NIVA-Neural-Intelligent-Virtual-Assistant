@@ -93,10 +93,12 @@ pixel), and FLAME motion at 25fps (expression ∈ ℝ¹⁰⁰, pose ∈ ℝ⁶, 
   `torch==2.3.1+cu121` / `torchvision==0.18.1+cu121` for L40S (sm_89).
 - **Web renderer:** **Node** + a modern WebGPU-capable browser (desktop Chrome).
 - **AWS account** with the CLI configured:
-  - Build + data region: **us-east-2** (US East / Ohio) — EC2, S3, CloudWatch.
+  - **Arc A (avatar build) region: ap-south-1** (Asia Pacific / Mumbai) — EC2 g6e.4xlarge,
+    S3 buckets, and CloudWatch logs are co-located here.
   - **Nova Sonic region: us-east-1** (N. Virginia), live as
     `amazon.nova-2-sonic-v1:0` / `amazon.nova-2-5-sonic`. The Arc B runtime makes a
-    cross-region Bedrock call to us-east-1.
+    **cross-region Bedrock call** from ap-south-1 to us-east-1 (added RTT must stay
+    within the <1.5s time-to-first-audio budget). Nova Sonic is NOT invoked during Arc A.
 
 ---
 

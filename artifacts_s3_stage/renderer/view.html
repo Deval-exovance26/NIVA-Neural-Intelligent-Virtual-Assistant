@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>NIVA Avatar — Arc A</title>
+<style>
+ body{margin:0;background:#0f1115;color:#dde3ec;font-family:system-ui,sans-serif;padding:24px;line-height:1.5}
+ h1{font-size:20px;margin:0 0 4px} h2{font-size:15px;color:#7cc4ff;margin:26px 0 8px}
+ .sub{opacity:.7;font-size:13px;margin-bottom:16px}
+ video{max-width:100%;background:#000;border-radius:10px;border:1px solid #262a33}
+ .note{font-size:13px;opacity:.85;max-width:760px;margin-top:8px}
+ a.btn{display:inline-block;margin:6px 8px 0 0;padding:8px 14px;border-radius:8px;background:#19324d;color:#bfe0ff;text-decoration:none;border:1px solid #2a4a63}
+</style></head><body>
+<h1>NIVA — female avatar · Arc A</h1>
+<div class="sub">Server-rendered on the L40S. Watermark-free.</div>
+
+<h2>1. Performance render — GAGAvatar neural renderer (no watermark)</h2>
+<video src="niva_performance.mp4" controls autoplay loop muted playsinline></video>
+<div class="note">input portrait | FLAME overlay | rendered 3DGS avatar, driven by the reference video.</div>
+
+<h2>2. Interactive avatar (your device GPU: WebGPU, else WebGL2)</h2>
+<div>
+  <a class="btn" href="./index.html?asset=niva_base&dir=./assets">Base — interactive</a>
+  <a class="btn" href="./index.html?asset=niva_refined&dir=./assets_refined&backend=webgl2">Refined — WebGL2</a>
+</div>
+<div class="note">Runs on any device with WebGPU or WebGL2. Drag to orbit, wheel/pinch to zoom.</div>
+</body></html>

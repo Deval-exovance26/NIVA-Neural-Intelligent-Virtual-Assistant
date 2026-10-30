@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>NIVA — Frontal Avatar (blink + lip-sync)</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #cfc7bd; color: #d8dde6;
+      font-family: system-ui, sans-serif; overflow: hidden; touch-action: none; }
+    
+    /* Fixed aspect-ratio container centered in viewport for consistent alignment */
+    #avatar-wrap {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    /* Fixed aspect ratio box matching the avatar framing (588:668) */
+    #avatar-box {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: calc(100vh * 588 / 668);
+      max-height: calc(100vw * 668 / 588);
+      overflow: hidden;
+    }
+    
+    /* Static body photo - layered BEHIND the canvas */
+    #body {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      object-fit: cover;
+      /* Photo alignment: scale up and position so the photo's head aligns with avatar head.
+         Avatar fills width with hair; photo head is ~53% of photo width.
+         We need to enlarge the photo so photo head width matches avatar head width (~575px in a 588px box).
+         Photo head width ~626px out of 1176px (53%). Avatar head ~575px out of 588px (97.8%).
+         Scale factor: 97.8% / 53% ≈ 1.85x. Since object-fit:cover auto-scales to fill,
+         we use object-position to center the head horizontally and align top. 
+         Photo head center x ≈ 51% (601/1176). Photo head top y ≈ 3.6% (48/1337).
+         Avatar head top y ≈ 8.4% (56/668). To align heads:
+         Shift photo up so photo head top (3.6%) aligns with avatar head top (8.4%).
+         At cover scale, the photo is enlarged; adjust object-position accordingly. */
+      object-position: 51% 0%;
+    }
+    
+    /* Canvas overlays the body image */
+    #app {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+    
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: transparent;
+      /* Feather mask: keep the live FACE + front hair visible and fade to transparent
+         toward the edges and the neck, so the static body photo (hair sides, shoulders,
+         torso) shows around and below the live head with no hard rectangle/halo.
+         An elliptical radial mask centred slightly above the face centre covers the
+         head; a bottom linear fade blends the chin/neck into the photo neck. The two
+         masks are intersected (mask-composite) so BOTH must pass. */
+      -webkit-mask-image:
+        radial-gradient(ellipse 46% 44% at 50% 42%, black 62%, rgba(0,0,0,0.0) 100%),
+        linear-gradient(to bottom, black 0%, black 70%, transparent 84%);
+      -webkit-mask-composite: source-in;
+      mask-image:
+        radial-gradient(ellipse 46% 44% at 50% 42%, black 62%, rgba(0,0,0,0.0) 100%),
+        linear-gradient(to bottom, black 0%, black 70%, transparent 84%);
+      mask-composite: intersect;
+    }
+    
+    #hud { position: fixed; left: 12px; top: 12px; font-size: 13px;
+      background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 8px; line-height: 1.5; z-index: 100; }
+    #hud b { color: #7cc4ff; }
+    #badge { position: fixed; right: 12px; top: 12px; font-size: 12px;
+      background: rgba(0,0,0,.45); padding: 6px 10px; border-radius: 8px; color: #9fe6a0; z-index: 100; }
+    #playbtn { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+      padding: 10px 20px; border-radius: 24px; border: none; background: #2b6cff; color: #fff;
+      font-size: 15px; cursor: pointer; z-index: 100; }
+    #err { position: fixed; inset: 0; display: none; place-items: center; padding: 24px; text-align: center; z-index: 200; }
+    #err div { max-width: 560px; background: #1a1d24; padding: 20px 24px; border-radius: 10px; border: 1px solid #333; }
+  </style>
+</head>
+<body>
+  <div id="avatar-wrap">
+    <div id="avatar-box">
+      <img id="body" src="./assets_frontal/body.png" alt="" />
+      <div id="app"><canvas id="gfx"></canvas></div>
+    </div>
+  </div>
+  <div id="hud">
+    <div><b>NIVA</b> — frontal · blink + lip-sync</div>
+    <div id="stat">initializing…</div>
+  </div>
+  <div id="badge">—</div>
+  <button id="playbtn">▶ Speak</button>
+  <div id="err"><div id="errmsg"></div></div>
+  <script type="module" src="./app_frontal.js"></script>
+</body>
+</html>

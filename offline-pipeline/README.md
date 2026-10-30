@@ -2,7 +2,7 @@
 
 The **avatar build** (Arc A) of NIVA. All GPU-heavy, non-interactive reconstruction
 code lives here. Runs on the single EC2 **g6e.4xlarge (L40S 48GB, CUDA 12.x)** in
-`us-east-2` (US East / Ohio). The backend never renders avatar video; this stage only
+`ap-south-1` (Asia Pacific / Mumbai). The backend never renders avatar video; this stage only
 produces the exported, browser-loadable avatar asset.
 
 ## Role (per docs/architecture.md)

@@ -32,9 +32,9 @@ Responsibilities:
 ## Nova Sonic model (confirmed live)
 
 - Region: **us-east-1** — `amazon.nova-2-sonic-v1:0` / `amazon.nova-2-5-sonic`.
-- The avatar build and S3 assets live in **us-east-2** (SOW region); the Bedrock Nova
-  Sonic call targets **us-east-1** where the model is available. Keep the two regions
-  explicit in config.
+- **Cross-region call:** The Arc B runtime (EC2 in ap-south-1) makes a cross-region
+  Bedrock call to us-east-1 for Nova Sonic. The added RTT must stay within the
+  <1.5s time-to-first-audio budget. Nova Sonic is NOT invoked during Arc A (avatar build).
 
 ## Status
 

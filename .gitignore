@@ -34,6 +34,7 @@
 *.mp3
 
 # -- Explicit NIVA capture-asset guards (the 534MB video must never land in git)
+NIVA/
 NIVA/video/*.mp4
 NIVA/video/*.mov
 NIVA/images/*.mp4          # e.g. NIVA/images/Nidhi_Avatar.mp4
@@ -89,3 +90,24 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# -- Credentials / keys (NEVER commit) ---------------------------------------
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+Avatar_key*
+*.ppk
+
+# -- Archives (license-gated FLAME zips, downloaded weights bundles) ----------
+# FLAME 2020 / masks / landmark embedding are license-gated downloads supplied
+# via FLAME2020_SRC to scripts/fetch_models.sh — never commit them.
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+FLAME2020*
+FLAME_masks*
+mediapipe_landmark_embedding*

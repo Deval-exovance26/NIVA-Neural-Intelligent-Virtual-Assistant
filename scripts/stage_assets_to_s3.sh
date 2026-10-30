@@ -12,8 +12,8 @@
 # to be run manually and will REFUSE to proceed until you confirm the bucket.
 #
 # Bucket / region are env vars with documented DEFAULT SUGGESTIONS:
-#   NIVA_S3_BUCKET   default: niva-avatar-assets-<accountid>   (resolved live)
-#   NIVA_S3_REGION   default: us-east-2  (SOW region, US East / Ohio)
+#   NIVA_S3_BUCKET   default: niva-avatar-assets-<accountid>-euc1   (resolved live)
+#   NIVA_S3_REGION   default: eu-central-1  (deployment region, Europe / Frankfurt)
 #   NIVA_S3_PREFIX   default: raw-capture/v1
 #
 # Usage:
@@ -22,7 +22,7 @@
 #   # real upload (requires explicit confirmation):
 #   NIVA_CONFIRM=1 bash scripts/stage_assets_to_s3.sh
 #   # override bucket/region:
-#   NIVA_S3_BUCKET=my-bucket NIVA_S3_REGION=us-east-2 NIVA_CONFIRM=1 \
+#   NIVA_S3_BUCKET=my-bucket NIVA_S3_REGION=us-east-1 NIVA_CONFIRM=1 \
 #     bash scripts/stage_assets_to_s3.sh
 # ---------------------------------------------------------------------------
 set -euo pipefail
@@ -38,7 +38,7 @@ die()  { printf '\033[1;31m[FAIL]\033[0m %s\n' "$*" >&2; exit 1; }
 
 command -v aws >/dev/null 2>&1 || die "AWS CLI not found. Install + 'aws configure' first."
 
-REGION="${NIVA_S3_REGION:-us-east-2}"      # SOW region: US East (Ohio)
+REGION="${NIVA_S3_REGION:-eu-central-1}"      # deployment region: Europe (Frankfurt)
 PREFIX="${NIVA_S3_PREFIX:-raw-capture/v1}"
 CONFIRM="${NIVA_CONFIRM:-0}"
 
@@ -51,7 +51,7 @@ else
   ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text 2>/dev/null || true)"
   [[ -n "${ACCOUNT_ID}" && "${ACCOUNT_ID}" != "None" ]] \
     || die "could not resolve AWS account id (is 'aws configure' done?). Set NIVA_S3_BUCKET explicitly."
-  BUCKET="niva-avatar-assets-${ACCOUNT_ID}"
+  BUCKET="niva-avatar-assets-${ACCOUNT_ID}-euc1"
 fi
 
 log "target bucket : s3://${BUCKET}"
@@ -69,8 +69,10 @@ else
   if [[ "${CONFIRM}" == "1" ]]; then
     log "creating bucket s3://${BUCKET} in ${REGION}..."
     if [[ "${REGION}" == "us-east-1" ]]; then
+      # us-east-1 is special: it does NOT accept a LocationConstraint
       aws s3 mb "s3://${BUCKET}" --region "${REGION}"
     else
+      # All other regions (including eu-central-1) REQUIRE a LocationConstraint
       aws s3api create-bucket --bucket "${BUCKET}" --region "${REGION}" \
         --create-bucket-configuration "LocationConstraint=${REGION}"
     fi
